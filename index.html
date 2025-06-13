@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Importeur de User Stories</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 2em;
+    }
+    .drop-zone {
+      border: 2px dashed #ccc;
+      padding: 2em;
+      text-align: center;
+      color: #999;
+      margin-top: 1em;
+      transition: background-color 0.2s;
+    }
+    .drop-zone.dragover {
+      background-color: #f0f8ff;
+      color: #333;
+    }
+    .postits-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1em;
+      margin-top: 2em;
+    }
+    .postit {
+      background-color: #fffa86;
+      border: 1px solid #e0d600;
+      width: 120px;
+      height: 120px;
+      padding: 0.5em;
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+      overflow: hidden;
+      word-wrap: break-word;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      cursor: grab;
+    }
+    .board {
+      display: flex;
+      justify-content: space-between;
+      align-items: stretch;
+      margin-top: 3em;
+      gap: 1em;
+    }
+    .column {
+      width: 180px;
+      min-height: 300px;
+      border: 2px solid #ccc;
+      padding: 1em;
+      box-sizing: border-box;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 1em;
+      transition: background-color 0.2s, border-color 0.2s;
+    }
+    .column.highlight {
+      background-color: #e6f7ff;
+      border-color: #3399ff;
+    }
+    .column h2 {
+      margin-top: 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Importer un fichier de User Stories</h1>
+
+  <input type="file" id="fileInput" accept=".txt">
+
+  <div id="dropZone" class="drop-zone">
+    Glisser-déposer un fichier ici
+  </div>
+
+  <div id="postits" class="postits-container"></div>
+
+  <div class="board">
+    <div class="column" data-column="1"><h2>1</h2></div>
+    <div class="column" data-column="2"><h2>2</h2></div>
+    <div class="column" data-column="3"><h2>3</h2></div>
+    <div class="column" data-column="5"><h2>5</h2></div>
+    <div class="column" data-column="8"><h2>8</h2></div>
+    <div class="column" data-column="13"><h2>13</h2></div>
+  </div>
+
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const dropZone = document.getElementById('dropZone');
+    const postits = document.getElementById('postits');
+    const columns = document.querySelectorAll('.column');
+
+    function makeDraggable(element) {
+      element.setAttribute('draggable', 'true');
+      element.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('postit-id', element.dataset.id);
+        e.dataTransfer.effectAllowed = 'move';
+      });
+    }
+
+    function adjustColumnHeights() {
+      let maxHeight = 0;
+      columns.forEach(col => {
+        col.style.height = 'auto';
+        maxHeight = Math.max(maxHeight, col.scrollHeight);
+      });
+      columns.forEach(col => {
+        col.style.height = maxHeight + 'px';
+      });
+    }
+
+    function handleFile(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const lines = e.target.result.split(/\r?\n/).filter(line => line.trim() !== '');
+        postits.innerHTML = '';
+        lines.forEach((line, index) => {
+          const div = document.createElement('div');
+          div.className = 'postit';
+          div.textContent = line;
+          div.dataset.id = 'postit-' + index;
+          makeDraggable(div);
+          postits.appendChild(div);
+        });
+      };
+      reader.readAsText(file);
+    }
+
+    columns.forEach(column => {
+      column.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        column.classList.add('highlight');
+        e.dataTransfer.dropEffect = 'move';
+      });
+
+      column.addEventListener('dragleave', () => {
+        column.classList.remove('highlight');
+      });
+
+      column.addEventListener('drop', (e) => {
+        e.preventDefault();
+        column.classList.remove('highlight');
+        const id = e.dataTransfer.getData('postit-id');
+        const existing = document.querySelector('[data-id="' + id + '"]');
+        if (existing) {
+          column.appendChild(existing);
+          adjustColumnHeights();
+        }
+      });
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        handleFile(e.target.files[0]);
+      }
+    });
+
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      if (e.dataTransfer.files.length > 0) {
+        handleFile(e.dataTransfer.files[0]);
+      }
+    });
+  </script>
+</body>
+</html>
