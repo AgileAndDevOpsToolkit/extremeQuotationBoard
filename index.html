@@ -25,6 +25,14 @@
       flex-wrap: wrap;
       gap: 1em;
       margin-top: 2em;
+      border: 2px dashed #bbb;
+      padding: 1em;
+      min-height: 150px;
+      transition: background-color 0.2s, border-color 0.2s;
+    }
+    .postits-container.highlight {
+      background-color: #eef9ff;
+      border-color: #3399ff;
     }
     .postit {
       background-color: #fffa86;
@@ -34,12 +42,37 @@
       padding: 0.5em;
       box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
       overflow: hidden;
-      word-wrap: break-word;
       display: flex;
       align-items: center;
       justify-content: center;
       text-align: center;
       cursor: grab;
+    }
+    .postit span {
+      display: block;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-size: 1em;
+      line-height: 1.2;
+      word-wrap: break-word;
+      white-space: pre-wrap;
+    }
+    .descoper-zone {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1em;
+      border: 2px dashed #888;
+      padding: 1em;
+      margin-top: 2em;
+      min-height: 150px;
+      text-align: center;
+      background-color: #fdf2f2;
+      transition: background-color 0.2s, border-color 0.2s;
+    }
+    .descoper-zone.highlight {
+      background-color: #fdecea;
+      border-color: #ff6666;
     }
     .board {
       display: flex;
@@ -67,6 +100,11 @@
     .column h2 {
       margin-top: 0;
     }
+    #totalPoints {
+      font-weight: bold;
+      font-size: 1.2em;
+      margin-top: 1em;
+    }
   </style>
 </head>
 <body>
@@ -80,6 +118,11 @@
 
   <div id="postits" class="postits-container"></div>
 
+  <div id="descoperZone" class="descoper-zone">
+    <strong>Zone descoper</strong><br>
+    Dépose ici les User Stories que tu ne veux pas estimer.
+  </div>
+
   <div class="board">
     <div class="column" data-column="1"><h2>1</h2></div>
     <div class="column" data-column="2"><h2>2</h2></div>
@@ -89,11 +132,15 @@
     <div class="column" data-column="13"><h2>13</h2></div>
   </div>
 
+  <div id="totalPoints">Total Story Points : 0</div>
+
   <script>
     const fileInput = document.getElementById('fileInput');
     const dropZone = document.getElementById('dropZone');
     const postits = document.getElementById('postits');
     const columns = document.querySelectorAll('.column');
+    const descoperZone = document.getElementById('descoperZone');
+    const totalPointsDisplay = document.getElementById('totalPoints');
 
     function makeDraggable(element) {
       element.setAttribute('draggable', 'true');
@@ -101,6 +148,16 @@
         e.dataTransfer.setData('postit-id', element.dataset.id);
         e.dataTransfer.effectAllowed = 'move';
       });
+    }
+
+    function adjustFontSize(span) {
+      let fontSize = 1.2;
+      const parent = span.parentElement;
+      span.style.fontSize = fontSize + 'em';
+      while ((span.scrollHeight > parent.clientHeight || span.scrollWidth > parent.clientWidth) && fontSize > 0.4) {
+        fontSize -= 0.05;
+        span.style.fontSize = fontSize + 'em';
+      }
     }
 
     function adjustColumnHeights() {
@@ -114,6 +171,16 @@
       });
     }
 
+    function updateTotalPoints() {
+      let total = 0;
+      columns.forEach(col => {
+        const weight = parseInt(col.dataset.column);
+        const cards = col.querySelectorAll('.postit');
+        total += weight * cards.length;
+      });
+      totalPointsDisplay.textContent = `Total Story Points : ${total}`;
+    }
+
     function handleFile(file) {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -122,37 +189,46 @@
         lines.forEach((line, index) => {
           const div = document.createElement('div');
           div.className = 'postit';
-          div.textContent = line;
           div.dataset.id = 'postit-' + index;
+          const span = document.createElement('span');
+          span.textContent = line;
+          div.appendChild(span);
           makeDraggable(div);
           postits.appendChild(div);
+          adjustFontSize(span);
         });
+        updateTotalPoints();
       };
       reader.readAsText(file);
     }
 
-    columns.forEach(column => {
-      column.addEventListener('dragover', (e) => {
+    function makeDroppable(zone) {
+      zone.addEventListener('dragover', (e) => {
         e.preventDefault();
-        column.classList.add('highlight');
+        zone.classList.add('highlight');
         e.dataTransfer.dropEffect = 'move';
       });
 
-      column.addEventListener('dragleave', () => {
-        column.classList.remove('highlight');
+      zone.addEventListener('dragleave', () => {
+        zone.classList.remove('highlight');
       });
 
-      column.addEventListener('drop', (e) => {
+      zone.addEventListener('drop', (e) => {
         e.preventDefault();
-        column.classList.remove('highlight');
+        zone.classList.remove('highlight');
         const id = e.dataTransfer.getData('postit-id');
         const existing = document.querySelector('[data-id="' + id + '"]');
         if (existing) {
-          column.appendChild(existing);
+          zone.appendChild(existing);
           adjustColumnHeights();
+          updateTotalPoints();
         }
       });
-    });
+    }
+
+    columns.forEach(makeDroppable);
+    makeDroppable(descoperZone);
+    makeDroppable(postits);
 
     fileInput.addEventListener('change', (e) => {
       if (e.target.files.length > 0) {
